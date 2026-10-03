@@ -1,140 +1,116 @@
-# AIoT Smart Locker — Face ID Module
-**RET503 · Pertemuan 3 · CDIO Stage #2**
+# AIoT Smart Locker — ResNet-50 Face ID
+
+**RET503 · Pertemuan 3 · Ester Aprilyani Pandiangan · 4222401026**
 
 ## Deskripsi Proyek
-Sistem autentikasi wajah untuk smart locker berbasis AIoT. Kamera mendeteksi dan mengklasifikasikan wajah pengguna terdaftar secara real-time. Modul ini bekerja paralel dengan sensor fingerprint fisik.
 
----
+Proyek ini merupakan eksperimen modul Face ID untuk sistem AIoT Smart Locker menggunakan model **ResNet-50**. Model digunakan untuk mengklasifikasikan wajah pengguna terdaftar ke dalam dua kelas, yaitu **Asra** dan **Ester**.
 
-## Spesifikasi Kamera
-| Parameter | Nilai |
-|---|---|
-| Resolusi RGB | 1920 × 1080 @ 30 FPS (MJPG) |
-| Resolusi IR | 352 × 352 @ 15 FPS (pengembangan lanjutan) |
-| FOV | 95° (lebar — wajib crop ROI) |
-| Focus | Fixed-focus — optimal 50–100 cm |
-| Windows Hello | 4.x Support |
-| Daya | 5V; 900mA (USB) |
+Eksperimen ini bertujuan untuk membandingkan performa ResNet-50 dengan tiga pendekatan training, yaitu **Feature Extraction, Partial Fine-Tuning, dan Training from Scratch**.
 
-> **Penting:** Karena FOV 95°, posisikan wajah **50–80 cm** dari kamera. Wajah terdeteksi otomatis lalu di-crop sebelum resize ke 224×224.
+## Dataset
 
----
+Dataset utama terdiri dari 100 gambar wajah dari dua kelas.
 
-## Pipeline Preprocessing (harus identik saat training & deployment)
-```
-Frame 1920×1080 (BGR)
-    → cv2.cvtColor(BGR2RGB)
-    → Haar Cascade deteksi wajah
-    → Crop ROI + margin 25%
-    → Resize 224×224
-    → Normalize (mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
-```
+| Kelas     |  Jumlah |
+| --------- | ------: |
+| Asra      |      50 |
+| Ester     |      50 |
+| **Total** | **100** |
 
----
+### Pembagian Dataset
 
-## Struktur Folder
-```
-smart_locker_faceid/
-├── dataset_raw/
-│   ├── metadata.csv        ← log semua foto (wajib diisi)
-│   ├── ali/
-│   ├── budi/
-│   ├── ...                 ← satu folder per orang (13 orang)
-│   └── unknown/            ← wajah tidak terdaftar
-├── dataset_split/
-│   ├── train/              ← sesi1 (otomatis oleh split.py)
-│   └── val/                ← sesi2+ (otomatis oleh split.py)
-├── scripts/
-│   ├── capture.py          ← registrasi kamera 1920×1080, crop otomatis
-│   ├── split.py            ← pisah train/val berdasarkan sesi
-│   ├── train.py            ← latih 3 mode (feature/partial/scratch)
-│   └── latency.py          ← ukur latensi inference
-└── README.md
-```
+Dataset dibagi menggunakan stratified random split dengan rasio 80:20.
 
----
+| Dataset    |   Asra |  Ester |   Total |
+| ---------- | -----: | -----: | ------: |
+| Training   |     40 |     40 |      80 |
+| Validation |     10 |     10 |      20 |
+| **Total**  | **50** | **50** | **100** |
 
-## Cara Penggunaan
+Dataset wajah tidak disertakan dalam repository untuk menjaga privasi.
 
-### Install
-```bash
-pip install torch torchvision opencv-python pillow
-```
+## Model ResNet-50
 
-### 1. Ambil Data (Sesi 1 → train)
-```bash
-# Posisikan wajah 50–80 cm dari kamera!
-python scripts/capture.py ali terang --sesi sesi1 --target 50
-python scripts/capture.py budi terang --sesi sesi1 --target 50
-# ... ulangi untuk semua 13 orang + unknown
+Eksperimen menggunakan arsitektur **ResNet-50** untuk klasifikasi dua kelas wajah terdaftar.
 
-# Kontrol:
-# SPASI → simpan (crop wajah otomatis)
-# S     → simpan tanpa crop (fallback)
-# Q     → keluar
-```
+Tiga pendekatan training yang diuji:
 
-### 2. Ambil Data (Sesi 2 → val, kondisi berbeda)
-```bash
-python scripts/capture.py ali redup --sesi sesi2 --target 20
-```
+* **Feature Extraction:** menggunakan backbone pretrained sebagai pengekstraksi fitur dan melatih classifier.
+* **Partial Fine-Tuning:** melatih classifier dan sebagian layer backbone.
+* **Training from Scratch:** melatih model tanpa menggunakan bobot pretrained.
 
-### 3. Split Dataset
-```bash
-python scripts/split.py
-# Sesi1 → dataset_split/train/
-# Sesi2+ → dataset_split/val/
-```
+## Metode Eksperimen
 
-### 4. Latih 3 Mode
-```bash
-python scripts/train.py --mode feature   # hanya fc, LR=1e-3
-python scripts/train.py --mode partial   # layer4+fc, discriminative LR
-python scripts/train.py --mode scratch   # semua layer, LR=1e-3
-```
+Ketiga mode training dijalankan dan dievaluasi menggunakan dataset training dan validation yang sama agar hasilnya dapat dibandingkan.
 
-### 5. Ukur Latensi
-```bash
-python scripts/latency.py   # ResNet-18 vs MobileNetV3-Small
-```
-
----
+Parameter dan konfigurasi training mengikuti implementasi pada `scripts/train.py`.
 
 ## Hasil Eksperimen
 
-| Mode | Akurasi Val Terbaik | Waktu Latih | Epoch @ 90% | Latensi Inf. |
-|------|-------------------|-------------|-------------|-------------|
-| feature | _isi setelah praktikum_ | | | |
-| partial | | | | |
-| scratch | | | | |
+| Mode Training         | Akurasi Validation Terbaik | Waktu Training |
+| --------------------- | -------------------------: | -------------: |
+| Feature Extraction    |                        95% |      1,0 menit |
+| Partial Fine-Tuning   |                       100% |      1,2 menit |
+| Training from Scratch |                       100% |      3,0 menit |
 
-*(Grafik: `results/accuracy_plot.png`)*
+### Grafik Accuracy
 
----
+**Feature Extraction**
 
-## Analisis
+![ResNet-50 Feature Extraction](results/acc_resnet50_feature.png)
 
-### Hipotesis (sebelum eksperimen)
-Feature extraction dan partial fine-tuning diperkirakan jauh lebih baik dari scratch karena dataset kecil (≥50 citra/kelas dari 13 orang). Model pretrained ImageNet sudah belajar fitur tepi, tekstur, dan pola yang relevan untuk pengenalan wajah.
+**Partial Fine-Tuning**
 
-### Hasil dan Temuan
-*(Isi setelah praktikum)*
+![ResNet-50 Partial Fine-Tuning](results/acc_resnet50_partial.png)
 
-### Model yang Dipilih
-*(Isi setelah eksperimen — pertimbangkan akurasi val vs latensi di CPU)*
+**Training from Scratch**
 
-### Risiko yang Ditemukan
-*(Catat data leakage, overfitting, blur akibat fixed-focus, atau isu lain)*
+![ResNet-50 Scratch](results/acc_resnet50_scratch.png)
 
----
+## Analisis Hasil
 
-## Catatan Penting
-- **Anti data leakage**: split berdasarkan SESI, bukan random frame.
-- **BGR→RGB**: OpenCV baca BGR, model ImageNet butuh RGB — konversi wajib.
-- **Crop wajah dulu**: jangan langsung resize full frame karena FOV 95° membuat wajah kecil.
-- **Jarak 50–80 cm**: sesuai fixed-focus kamera, tandai garis di lantai saat sesi capture.
-- **metadata.csv**: wajib diisi tiap sesi untuk analisis kegagalan minggu 8 & 12.
+Berdasarkan eksperimen yang dilakukan, ResNet-50 dengan mode Feature Extraction memperoleh akurasi validation terbaik sebesar 95%, sedangkan Partial Fine-Tuning dan Training from Scratch memperoleh akurasi validation terbaik sebesar 100%.
 
----
+Waktu training berbeda pada setiap pendekatan. Feature Extraction membutuhkan sekitar 1,0 menit, Partial Fine-Tuning sekitar 1,2 menit, dan Training from Scratch sekitar 3,0 menit.
 
-*Program Studi Teknologi Rekayasa Robotika · Politeknik Negeri Batam*
+Hasil ini menunjukkan performa model pada dataset validation dalam eksperimen yang dilakukan. Namun, akurasi yang tinggi belum menjamin kemampuan generalisasi pada kondisi nyata, karena jumlah dataset masih terbatas dan data validation berasal dari pembagian dataset yang sama.
+
+## Keterbatasan Eksperimen
+
+Beberapa keterbatasan eksperimen ini adalah:
+
+* Dataset hanya terdiri dari 100 gambar wajah.
+* Eksperimen menggunakan dua kelas wajah.
+* Data validation masih terbatas, yaitu 20 gambar.
+* Pengujian belum mencakup berbagai sesi pengambilan gambar dan kondisi lingkungan yang beragam.
+* Pengujian pada dataset terbatas belum cukup untuk memastikan keandalan Face ID pada penggunaan nyata.
+
+Pengembangan selanjutnya dapat dilakukan dengan menambah jumlah gambar, menggunakan beberapa sesi pengambilan data, serta menguji model dalam kondisi pencahayaan dan posisi wajah yang lebih bervariasi.
+
+## Struktur Folder
+
+```text
+smart-locker-faceid/
+├── scripts/
+│   └── train.py
+├── results/
+│   ├── acc_resnet50_feature.png
+│   ├── acc_resnet50_partial.png
+│   ├── acc_resnet50_scratch.png
+│   ├── log_resnet50_feature.csv
+│   ├── log_resnet50_partial.csv
+│   ├── log_resnet50_scratch.csv
+│   └── summary.csv
+├── dataset_raw/          # Dataset lokal, tidak diunggah
+├── .gitignore
+└── README.md
+```
+
+File model hasil training (`.pth`) tidak disertakan dalam repository karena ukuran file yang besar. Dataset foto wajah juga tetap disimpan secara lokal untuk menjaga privasi.
+
+## Catatan
+
+Eksperimen ini berfokus pada perbandingan tiga pendekatan training ResNet-50 sebagai bagian dari pengembangan modul Face ID pada sistem AIoT Smart Locker.
+
+**Program Studi Teknologi Rekayasa Robotika · Politeknik Negeri Batam**
