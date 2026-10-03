@@ -1,0 +1,4 @@
+model,mode,best_val_acc,waktu_latih_menit,epoch_acc_90
+resnet50,feature,95.00,1.0,2
+resnet50,partial,100.00,1.2,2
+resnet50,scratch,100.00,3.0,7
