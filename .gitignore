@@ -1,0 +1,7 @@
+
+# Model weights
+results/*.pth
+
+# Face datasets
+dataset_raw/
+dataset_split/
