@@ -1,27 +1,51 @@
-# AIoT Smart Locker — ResNet-50 Face ID
+# AIoT Smart Locker — Face ID
 
 **RET503 · Pertemuan 3 · Ester Aprilyani Pandiangan · 4222401026**
-**Program Studi Teknologi Rekayasa Robotika · Politeknik Negeri Batam**
+**Program Studi D4 Teknologi Rekayasa Robotika · Politeknik Negeri Batam**
+
+---
 
 ## 1. Deskripsi Proyek
 
-Proyek ini merupakan eksperimen pengembangan modul Face ID untuk sistem AIoT Smart Locker menggunakan arsitektur **ResNet-50**. Model digunakan untuk melakukan klasifikasi wajah pengguna terdaftar ke dalam dua kelas, yaitu Asra dan Ester.
+Proyek ini merupakan pengembangan modul Face ID untuk sistem **AIoT Smart Locker** yang dirancang untuk membantu proses autentikasi pengguna melalui pengenalan wajah. Sistem mengklasifikasikan gambar wajah pengguna terdaftar sebagai bagian dari proses akses smart locker.
 
-Eksperimen ini bertujuan untuk membandingkan performa ResNet-50 menggunakan tiga pendekatan pelatihan, yaitu Feature Extraction, Partial Fine-Tuning, dan Training from Scratch. Evaluasi dilakukan berdasarkan akurasi validation dan waktu training sebagai bagian dari analisis performa model.
+Eksperimen ini membandingkan tiga arsitektur deep learning, yaitu **ResNet-18, ResNet-50, dan EfficientNet-B0**, untuk mengetahui performa klasifikasi wajah berdasarkan akurasi validation, waktu training, epoch saat mencapai akurasi tertentu, dan inference latency pada CPU.
 
-## 2. Dataset
+Setiap anggota kelompok menguji arsitektur yang berbeda:
 
-Dataset utama yang digunakan terdiri dari 100 gambar wajah dengan dua kelas.
+* **Asra Devi Fanitya** — ResNet-18
+* **Ester Aprilyani Pandiangan** — ResNet-50
+* **Hertasia Sicilia** — EfficientNet-B0
 
-| Kelas     | Jumlah gambar |
+Eksperimen ini berfokus pada klasifikasi dua kelas wajah terdaftar, yaitu Asra dan Ester. Integrasi model dengan server dan perangkat fisik smart locker merupakan bagian pengembangan sistem selanjutnya.
+
+---
+
+## 2. Tujuan
+
+* Mengembangkan model klasifikasi wajah menggunakan deep learning.
+* Membandingkan performa ResNet-18, ResNet-50, dan EfficientNet-B0.
+* Mengevaluasi pengaruh metode training terhadap hasil klasifikasi ResNet-50.
+* Mengukur inference latency dan estimasi FPS pada CPU.
+* Menyediakan hasil eksperimen sebagai dasar pengembangan modul Face ID untuk AIoT Smart Locker.
+
+---
+
+## 3. Dataset
+
+Dataset utama terdiri dari 100 gambar wajah dari dua kelas pengguna.
+
+| Kelas     | Jumlah Gambar |
 | --------- | ------------: |
 | Asra      |            50 |
 | Ester     |            50 |
 | **Total** |       **100** |
 
+Pada `metadata.csv` juga terdapat data `ali` sebanyak 3 gambar dan `unknown` sebanyak 1 gambar. Data tersebut tidak digunakan dalam eksperimen utama dua kelas.
+
 ### Pembagian Dataset
 
-Dataset dibagi menggunakan stratified random split dengan rasio 80:20.
+Dataset Asra dan Ester berasal dari satu sesi pengambilan gambar (`sesi1`), sehingga pembagian berdasarkan sesi belum dapat dilakukan. Dataset dibagi menggunakan random split 80:20 dengan seed 42.
 
 | Dataset    |   Asra |  Ester |   Total |
 | ---------- | -----: | -----: | ------: |
@@ -29,103 +53,184 @@ Dataset dibagi menggunakan stratified random split dengan rasio 80:20.
 | Validation |     10 |     10 |      20 |
 | **Total**  | **50** | **50** | **100** |
 
-Dataset digunakan untuk melatih dan mengevaluasi model. Karena data masih terbatas dan berasal dari sesi pengambilan yang sama, hasil validation belum menggambarkan kemampuan generalisasi model pada semua kondisi nyata.
+Pembagian ini digunakan untuk eksperimen klasifikasi dua kelas. Karena gambar training dan validation berasal dari sesi yang sama, hasil validation belum menunjukkan kemampuan generalisasi terhadap sesi pengambilan atau kondisi kamera yang berbeda.
 
-Foto wajah tidak disertakan dalam repository GitHub untuk menjaga privasi pengguna.
+Dataset wajah merupakan data biometrik, sehingga foto asli dan dataset hasil pembagian tidak disertakan dalam repository publik.
 
-## 3. Preprocessing
+---
 
-Tahapan preprocessing yang digunakan meliputi:
+## 4. Pipeline Preprocessing
 
-* Membaca gambar wajah.
-* Mengubah gambar ke format RGB.
-* Melakukan resize gambar sesuai input model.
-* Mengubah gambar menjadi tensor.
-* Melakukan normalisasi sebelum dimasukkan ke model.
+Pipeline preprocessing yang digunakan pada eksperimen ResNet-50:
 
-## 4. Arsitektur Model ResNet-50
+```text
+Gambar
+   ↓
+Resize dan augmentasi saat training
+   ↓
+Random Horizontal Flip
+   ↓
+Color Jitter
+   ↓
+Resize / Center Crop 224 × 224 saat validation
+   ↓
+ToTensor
+   ↓
+Normalize ImageNet
+   ↓
+Model klasifikasi
+```
 
-Eksperimen menggunakan **ResNet-50 pretrained ImageNet** untuk pendekatan Feature Extraction dan Partial Fine-Tuning, serta bobot awal acak untuk Training from Scratch.
+Normalisasi menggunakan parameter ImageNet:
 
-Classifier disesuaikan dengan dua kelas wajah, yaitu Asra dan Ester.
+```python
+mean = [0.485, 0.456, 0.406]
+std  = [0.229, 0.224, 0.225]
+```
 
-### Mode Training
+Pada validation, gambar diubah ukurannya menjadi 256 × 256, kemudian dilakukan center crop menjadi 224 × 224 piksel. Augmentasi training menggunakan random horizontal flip dan color jitter.
 
-| Mode                  | Bobot awal | Layer yang dilatih               |
-| --------------------- | ---------- | -------------------------------- |
-| Feature Extraction    | ImageNet   | Classifier saja                  |
-| Partial Fine-Tuning   | ImageNet   | Sebagian backbone dan classifier |
-| Training from Scratch | Acak       | Seluruh model                    |
+---
 
-Ketiga mode dijalankan dengan dataset yang sama untuk melihat perbedaan hasil pelatihan.
+## 5. Arsitektur Model
 
-## 5. Hasil Eksperimen
+Tiga arsitektur yang dievaluasi oleh anggota kelompok adalah:
 
-Eksperimen ResNet-50 menghasilkan akurasi validation terbaik dan waktu training sebagai berikut.
+| Model           | Penanggung Jawab           | Keterangan                             |
+| --------------- | -------------------------- | -------------------------------------- |
+| ResNet-18       | Asra Devi Fanitya          | Residual network dengan 18 layer       |
+| ResNet-50       | Ester Aprilyani Pandiangan | Residual network dengan 50 layer       |
+| EfficientNet-B0 | Hertasia Sicilia           | Efficient convolutional neural network |
 
-| Mode Training         | Akurasi Validation Terbaik | Waktu Training |
-| --------------------- | -------------------------: | -------------: |
-| Feature Extraction    |                        95% |      1,0 menit |
-| Partial Fine-Tuning   |                       100% |      1,2 menit |
-| Training from Scratch |                       100% |      3,0 menit |
+Eksperimen ResNet-18 dan EfficientNet-B0 menggunakan bobot pretrained ImageNet sesuai implementasi masing-masing anggota. Pada ResNet-50 dilakukan pengujian menggunakan tiga metode training, yaitu feature extraction, partial fine-tuning, dan scratch.
 
-### Grafik Akurasi
+### Parameter ResNet-50
 
-**Feature Extraction**
+| Parameter     | Nilai                              |
+| ------------- | ---------------------------------- |
+| Model         | ResNet-50                          |
+| Pretrained    | ImageNet untuk feature dan partial |
+| Jumlah kelas  | 2                                  |
+| Batch size    | 16                                 |
+| Epoch         | 10                                 |
+| Optimizer     | Adam                               |
+| Scheduler     | CosineAnnealingLR                  |
+| Loss function | Cross Entropy Loss                 |
+| Device        | CPU                                |
 
-![ResNet-50 Feature Extraction](results/acc_resnet50_feature.png)
+---
 
-**Partial Fine-Tuning**
+## 6. Metode Training ResNet-50
 
-![ResNet-50 Partial Fine-Tuning](results/acc_resnet50_partial.png)
+Tiga metode training diuji untuk mengetahui pengaruh strategi pembelajaran terhadap performa model.
 
-**Training from Scratch**
+| Metode              | Penjelasan                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| Feature Extraction  | Menggunakan bobot pretrained ImageNet, backbone dibekukan dan hanya classifier yang dilatih |
+| Partial Fine-Tuning | Menggunakan bobot pretrained ImageNet, layer terakhir (`layer4`) dan classifier dilatih     |
+| Scratch             | Model dilatih tanpa bobot pretrained ImageNet                                               |
 
-![ResNet-50 Training from Scratch](results/acc_resnet50_scratch.png)
+---
 
-Data hasil training per epoch tersedia pada file CSV di folder `results/`.
+## 7. Hasil Eksperimen ResNet-50
 
-## 6. Analisis Hasil
+### Hasil Training
 
-Berdasarkan eksperimen, Feature Extraction memperoleh akurasi validation terbaik sebesar 95%, sedangkan Partial Fine-Tuning dan Training from Scratch mencapai 100%.
+| Parameter                   |    Feature |    Partial |    Scratch |
+| --------------------------- | ---------: | ---------: | ---------: |
+| Best validation accuracy    |        95% |       100% |       100% |
+| Epoch pertama mencapai ≥90% |          2 |          2 |          7 |
+| Waktu training (perkiraan)  | ±1,0 menit | ±1,2 menit | ±3,0 menit |
+| Device                      |        CPU |        CPU |        CPU |
 
-Waktu training pada Feature Extraction adalah sekitar 1,0 menit, Partial Fine-Tuning sekitar 1,2 menit, dan Training from Scratch sekitar 3,0 menit.
+Hasil menunjukkan bahwa ketiga metode menghasilkan performa validation yang berbeda. Feature extraction mencapai akurasi validation terbaik sebesar 95%, sedangkan partial fine-tuning dan scratch mencapai 100% pada validation set eksperimen ini.
 
-Hasil ini menunjukkan bahwa ketiga pendekatan menghasilkan performa yang berbeda pada dataset validation yang digunakan. Akurasi validation sebesar 100% tidak secara otomatis menjamin model mampu mengenali wajah dengan akurat dalam kondisi operasional. Pengujian tambahan menggunakan data dari sesi dan kondisi yang berbeda masih diperlukan.
+Akurasi 100% hanya menggambarkan hasil pada 20 gambar validation yang digunakan. Hasil ini belum dapat dianggap sebagai jaminan performa untuk data wajah baru atau kondisi pengambilan yang berbeda.
 
-## 7. Pengukuran Latency
+### Grafik Accuracy per Epoch
 
-Latency merupakan waktu yang diperlukan model untuk menghasilkan prediksi dari sebuah gambar wajah. Pengukuran latency diperlukan untuk mengetahui respons model saat digunakan dalam sistem Face ID Smart Locker.
+#### ResNet-50 — Feature Extraction
 
-| Parameter           | Hasil          |
-| ------------------- | -------------- |
-| Model               | ResNet-50      |
-| Perangkat pengujian | CPU            |
-| Average latency     | Belum diukur   |
-| Minimum latency     | Belum diukur   |
-| Maximum latency     | Belum diukur   |
-| FPS                 | Belum dihitung |
+![ResNet-50 Feature Extraction Accuracy](results/acc_resnet50_feature.png)
 
-Pengukuran latency akan dilakukan setelah model yang akan digunakan ditentukan dan proses inference disiapkan. Nilai latency dan FPS akan ditambahkan berdasarkan hasil pengujian aktual, bukan estimasi.
+#### ResNet-50 — Partial Fine-Tuning
 
-## 8. Unit Komputasi dan Kamera
+![ResNet-50 Partial Fine-Tuning Accuracy](results/acc_resnet50_partial.png)
 
-Informasi perangkat kamera dan unit komputasi untuk implementasi akhir perlu dilengkapi berdasarkan perangkat yang digunakan pada pengujian dan integrasi Smart Locker.
+#### ResNet-50 — Scratch
 
-| Komponen                    | Spesifikasi                    |
-| --------------------------- | ------------------------------ |
-| Model                       | ResNet-50                      |
-| Framework                   | PyTorch                        |
-| Perangkat training          | CPU                            |
-| Kamera                      | Menunggu spesifikasi perangkat |
-| Unit komputasi implementasi | Menunggu spesifikasi perangkat |
+![ResNet-50 Scratch Accuracy](results/acc_resnet50_scratch.png)
 
-## 9. Struktur Folder
+Grafik memperlihatkan perubahan validation accuracy selama proses training untuk setiap metode.
+
+---
+
+## 8. Pengukuran Inference Latency ResNet-50
+
+Pengukuran inference latency dilakukan menggunakan CPU. Setiap model diuji dengan 10 iterasi warm-up dan 100 iterasi pengukuran, lalu pengujian diulang sebanyak tiga kali.
+
+Input berupa tensor berukuran 224 × 224 piksel. Pengukuran ini hanya mencakup inferensi model, tidak termasuk pengambilan gambar dari kamera dan preprocessing.
+
+### Hasil Pengukuran
+
+| Mode Training       | Rata-rata Latency | Perkiraan FPS |
+| ------------------- | ----------------: | ------------: |
+| Feature Extraction  |          46,98 ms |         21,29 |
+| Partial Fine-Tuning |          62,66 ms |         15,96 |
+| Scratch             |          68,63 ms |         14,57 |
+
+FPS dihitung menggunakan rumus:
+
+```text
+FPS = 1000 / Average Latency (ms)
+```
+
+Nilai latency dapat berubah karena beban CPU, proses lain yang berjalan, dan kondisi sistem saat pengujian. Ketiga model memiliki arsitektur ResNet-50 yang sama, sehingga perbedaan latency tidak dapat langsung dianggap sebagai perbedaan kompleksitas arsitektur.
+
+File hasil pengukuran terakhir disimpan di `results/latency_resnet50.csv`. Tabel di atas merupakan rekapitulasi rata-rata dari tiga kali pengukuran.
+
+---
+
+## 9. Perbandingan Hasil Eksperimen Kelompok
+
+Tabel berikut merangkum hasil eksperimen yang dilaporkan oleh masing-masing anggota kelompok.
+
+| Parameter                | ResNet-18 (Asra) | ResNet-50 Feature (Ester) | ResNet-50 Partial (Ester) | ResNet-50 Scratch (Ester) | EfficientNet-B0 (Herta) |
+| ------------------------ | ---------------: | ------------------------: | ------------------------: | ------------------------: | ----------------------: |
+| Best validation accuracy |              95% |                       95% |                      100% |                      100% |                    100% |
+| Epoch pertama ≥90%       |                4 |                         2 |                         2 |                         7 |                       — |
+| Epoch terbaik            |                6 |                         — |                         — |                         — |                       1 |
+| Waktu training           |       ±1,0 menit |                ±1,0 menit |                ±1,2 menit |                ±3,0 menit |            141,64 detik |
+| Average latency          |         59,92 ms |                  46,98 ms |                  62,66 ms |                  68,63 ms |                56,40 ms |
+| Perkiraan FPS            |             16,7 |                     21,29 |                     15,96 |                     14,57 |                   17,73 |
+
+**Catatan perbandingan:**
+
+* ResNet-18 dan EfficientNet-B0 merupakan hasil eksperimen masing-masing anggota, sedangkan tiga baris ResNet-50 merupakan tiga metode training dari anggota yang sama.
+* Informasi epoch pertama mencapai ≥90% untuk EfficientNet-B0 tidak dicantumkan karena tidak tersedia pada hasil yang diberikan.
+* Waktu dan pengaturan pengujian masing-masing anggota dapat berbeda. Oleh karena itu, tabel ini merupakan ringkasan hasil eksperimen kelompok, bukan perbandingan benchmark terkontrol sepenuhnya.
+* Latency antaranggota sebaiknya diuji ulang dengan prosedur, input, perangkat, dan jumlah iterasi yang sama sebelum digunakan sebagai perbandingan final.
+
+---
+
+## 10. Analisis Hasil
+
+Eksperimen ResNet-50 menunjukkan bahwa feature extraction memperoleh validation accuracy sebesar 95%, sementara partial fine-tuning dan scratch memperoleh 100%. Pada eksperimen ini, feature extraction dan partial fine-tuning pertama kali mencapai validation accuracy minimal 90% pada epoch ke-2, sedangkan scratch mencapainya pada epoch ke-7.
+
+Hasil ResNet-18 dari Asra memperoleh validation accuracy terbaik sebesar 95% pada epoch ke-6, dengan waktu training sekitar satu menit dan average latency sebesar 59,92 ms.
+
+EfficientNet-B0 dari Herta memperoleh validation accuracy sebesar 100% pada epoch pertama, waktu training 141,64 detik, dan average latency sebesar 56,40 ms.
+
+Perbedaan hasil tersebut menunjukkan bahwa performa model dipengaruhi oleh arsitektur, metode training, serta konfigurasi eksperimen. Namun, karena ukuran validation set masih kecil dan pengaturan eksperimen anggota belum sepenuhnya diseragamkan, hasil ini belum cukup untuk menyimpulkan kemampuan generalisasi model pada penggunaan smart locker sesungguhnya.
+
+---
+
+## 11. Struktur Folder
 
 ```text
 smart-locker-faceid/
-├── scripts/
-│   └── train.py
+├── dataset_raw/                 # Dataset wajah lokal, tidak di-upload
+├── dataset_split/               # Hasil split lokal, tidak di-upload
 ├── results/
 │   ├── acc_resnet50_feature.png
 │   ├── acc_resnet50_partial.png
@@ -133,37 +238,119 @@ smart-locker-faceid/
 │   ├── log_resnet50_feature.csv
 │   ├── log_resnet50_partial.csv
 │   ├── log_resnet50_scratch.csv
-│   └── summary.csv
-├── dataset_raw/       # Dataset lokal, tidak diunggah
+│   ├── summary.csv
+│   └── latency_resnet50.csv
+├── scripts/
+│   ├── capture.py
+│   ├── split.py
+│   ├── train.py
+│   └── latency.py
 ├── .gitignore
 └── README.md
 ```
 
-File model hasil pelatihan (`.pth`) dan dataset foto wajah tidak disertakan dalam repository GitHub karena ukuran file dan pertimbangan privasi.
+Checkpoint model (`*.pth`) dan foto wajah tidak disertakan dalam repository untuk menghindari file besar dan menjaga privasi data biometrik.
 
-## 10. Keterbatasan dan Pengembangan
+---
 
-Keterbatasan eksperimen ini meliputi:
+## 12. Instalasi
 
-* Dataset hanya terdiri dari 100 gambar wajah.
-* Eksperimen menggunakan dua kelas wajah.
-* Validation hanya terdiri dari 20 gambar.
-* Data training dan validation berasal dari sesi pengambilan yang sama.
-* Pengujian latency dan pengujian pada perangkat implementasi belum dilengkapi.
+Pastikan Python telah terpasang. Kemudian instal pustaka yang dibutuhkan:
 
-Pengembangan selanjutnya dapat dilakukan dengan:
+```bash
+python -m pip install torch torchvision
+python -m pip install pillow numpy matplotlib
+```
 
-* Menambah jumlah gambar dan variasi kondisi pengambilan.
-* Menguji model menggunakan sesi pengambilan data yang berbeda.
-* Melakukan pengujian latency dan FPS pada perangkat target.
-* Menguji model dengan wajah yang tidak terdaftar untuk mendukung kebutuhan verifikasi Face ID.
-* Mengintegrasikan model dengan sistem server dan perangkat fisik Smart Locker.
+Jika repository memiliki `requirements.txt`, dependensi dapat diinstal menggunakan:
 
-## 11. Kesimpulan
+```bash
+python -m pip install -r requirements.txt
+```
 
-Eksperimen ini menguji tiga pendekatan pelatihan pada arsitektur ResNet-50 untuk klasifikasi wajah dalam sistem AIoT Smart Locker. Akurasi validation terbaik yang diperoleh adalah 95% pada Feature Extraction dan 100% pada Partial Fine-Tuning serta Training from Scratch.
+---
 
-Hasil eksperimen menjadi dasar untuk pengujian lebih lanjut, khususnya pada data yang lebih beragam, pengukuran latency, dan implementasi pada perangkat target.
+## 13. Persiapan Dataset
 
-**Program Studi Teknologi Rekayasa Robotika**
+Dataset tidak disertakan dalam repository publik. Untuk menjalankan eksperimen secara lokal, siapkan dataset sesuai struktur yang dibutuhkan oleh script:
+
+```text
+dataset_raw/
+├── Asra/
+└── Ester/
+```
+
+Pastikan gambar wajah hanya disimpan secara lokal dan tidak diunggah ke repository publik.
+
+---
+
+## 14. Menjalankan Eksperimen ResNet-50
+
+### Membagi Dataset
+
+```bash
+python scripts/split.py
+```
+
+### Training Feature Extraction
+
+```bash
+python scripts/train.py --model resnet50 --mode feature
+```
+
+### Training Partial Fine-Tuning
+
+```bash
+python scripts/train.py --model resnet50 --mode partial
+```
+
+### Training from Scratch
+
+```bash
+python scripts/train.py --model resnet50 --mode scratch
+```
+
+### Mengukur Inference Latency
+
+```bash
+python scripts/latency.py
+```
+
+Hasil eksperimen akan disimpan di dalam folder `results/`.
+
+---
+
+## 15. Keterbatasan dan Pengembangan Selanjutnya
+
+Beberapa keterbatasan eksperimen saat ini:
+
+1. Dataset utama hanya terdiri dari 100 gambar wajah untuk dua kelas.
+2. Data Asra dan Ester hanya berasal dari satu sesi pengambilan.
+3. Validation set hanya terdiri dari 20 gambar.
+4. Pengujian dilakukan pada CPU laptop, bukan perangkat final smart locker.
+5. Belum dilakukan pengujian yang memadai terhadap wajah pengguna yang tidak terdaftar.
+6. Latency yang diukur belum mencakup keseluruhan proses dari kamera hingga respons smart locker.
+7. Perbandingan antaranggota belum sepenuhnya menggunakan prosedur benchmark yang sama.
+
+Pengembangan berikutnya dapat mencakup:
+
+* Menambah data dari beberapa sesi, sudut wajah, dan kondisi pencahayaan.
+* Menambah kelas pengguna sesuai kebutuhan sistem.
+* Menguji model menggunakan test set terpisah.
+* Menguji wajah yang tidak terdaftar dan mengembangkan mekanisme penolakan autentikasi.
+* Mengukur end-to-end latency pada perangkat target.
+* Menyeragamkan prosedur eksperimen untuk membandingkan ResNet-18, ResNet-50, dan EfficientNet-B0.
+* Mengintegrasikan model dengan server dan perangkat fisik smart locker.
+
+---
+
+## 16. Catatan Privasi
+
+Proyek ini menggunakan data wajah yang termasuk data biometrik. Oleh karena itu, foto wajah mentah, dataset hasil pembagian, dan checkpoint model tidak disertakan dalam repository publik. Penggunaan data harus dilakukan dengan memperhatikan izin dan privasi orang yang terlibat.
+
+---
+
+**Program Studi D4 Teknologi Rekayasa Robotika**
 **Politeknik Negeri Batam**
+
+**AIoT Smart Locker — Face ID Module**
